@@ -1,5 +1,4 @@
-import { Worker, Job } from 'bullmq';
-import { redisConnection } from '../config/queue.js';
+import { Worker, Job } from '../queues/in-memory-queue.js';
 import { prisma } from '../config/database.js';
 import { pythonBridgeService } from '../services/python/python-bridge.service.js';
 import { ffmpegService } from '../services/ffmpeg/ffmpeg.service.js';
@@ -81,8 +80,6 @@ export const transcriptionWorker = new Worker<TranscriptionJobData>(
     }
   },
   {
-    connection: redisConnection,
     concurrency: 1, // CPU-bound whisper runs best with concurrency 1 on 4-core CPU
   }
 );
-

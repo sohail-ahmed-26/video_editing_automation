@@ -63,12 +63,12 @@ export class EditingController {
     // Recalculate total duration
     let totalDuration = 0;
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // Find all tracks for this project
       const tracks = await tx.timelineTrack.findMany({
         where: { projectId, trackType: 'video' },
       });
-      const trackIds = tracks.map((t) => t.id);
+      const trackIds = tracks.map((t: any) => t.id);
 
       // Delete existing clips in these tracks
       await tx.timelineClip.deleteMany({

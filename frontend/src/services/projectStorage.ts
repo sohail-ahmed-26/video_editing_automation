@@ -1,81 +1,168 @@
-import { Project } from '../types/project';
+import { Project, Client, ProjectVersion } from '../types/project';
+import { apiClient } from './apiClient';
 
-const STORAGE_KEY = 'novacut_projects_v1';
+let cachedProjects: Project[] = [];
+
+export function backendToFrontendProject(bp: any): Project {
+  return {
+    id: bp.id,
+    title: bp.title,
+    description: bp.description || '',
+    clientId: bp.clientId || null,
+    client: bp.client || null,
+    clientName: bp.client?.name || 'General',
+    createdAt: bp.createdAt,
+    updatedAt: bp.updatedAt,
+    status: (bp.status as any) || 'draft',
+    rawPrompt: bp.rawPrompt || '',
+    tags: Array.isArray(bp.tags) ? bp.tags : (bp.tagsJson ? JSON.parse(bp.tagsJson) : []),
+    preferences: bp.preferences || (bp.preferencesJson ? JSON.parse(bp.preferencesJson) : {
+      aspectRatio: bp.aspectRatio || '16:9',
+      resolution: bp.resolution || '1080p',
+      frameRate: '30fps',
+      style: 'viral-fast',
+      pacingDensity: 4,
+      cutSilences: true,
+      generateCaptions: true,
+      autoColorGrade: false,
+      addBackgroundMusic: false,
+      musicMood: 'chill',
+    }),
+    thumbnailUrl: bp.thumbnailUrl || undefined,
+    durationSeconds: bp.durationSeconds || 0,
+    versions: bp.versions || [],
+    _count: bp._count,
+    videoMetadata: bp.mediaAssets?.[0]?.metadata
+      ? {
+          name: bp.mediaAssets[0].originalName || bp.mediaAssets[0].filename,
+          sizeBytes: bp.mediaAssets[0].fileSizeBytes,
+          type: bp.mediaAssets[0].mimeType,
+          durationSeconds: bp.mediaAssets[0].metadata.duration,
+          width: bp.mediaAssets[0].metadata.width,
+          height: bp.mediaAssets[0].metadata.height,
+          aspectRatio: bp.mediaAssets[0].metadata.aspectRatio,
+          lastModified: new Date(bp.mediaAssets[0].createdAt).getTime(),
+        }
+      : null,
+  };
+}
 
 export const projectStorage = {
   getAll(): Project[] {
+    return cachedProjects;
+  },
+
+  setCache(projects: Project[]): void {
+    cachedProjects = projects;
+  },
+
+  async fetchAll(clientId?: string): Promise<Project[]> {
     try {
-      const data = localStorage.getItem(STORAGE_KEY);
-      if (!data) return [];
-      const parsed = JSON.parse(data);
-      return Array.isArray(parsed) ? parsed : [];
+      const backendProjects = await apiClient.listProjects({ clientId });
+      const mapped = backendProjects.map(backendToFrontendProject);
+      cachedProjects = mapped;
+      return mapped;
     } catch (e) {
-      console.error('Failed to load projects from storage:', e);
-      return [];
+      console.error('Failed to fetch projects from backend:', e);
+      throw e;
     }
   },
 
-  getById(id: string): Project | null {
-    const projects = this.getAll();
-    return projects.find((p) => p.id === id) || null;
-  },
-
-  save(project: Project): Project {
-    const projects = this.getAll();
-    const existingIndex = projects.findIndex((p) => p.id === project.id);
-    const now = new Date().toISOString();
-
-    const updatedProject = {
-      ...project,
-      updatedAt: now,
-    };
-
-    if (existingIndex >= 0) {
-      projects[existingIndex] = updatedProject;
-    } else {
-      projects.unshift(updatedProject);
-    }
-
+  async getById(id: string): Promise<Project | null> {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+      const bp = await apiClient.getProject(id);
+      return backendToFrontendProject(bp);
     } catch (e) {
-      console.error('Failed to save project to storage:', e);
+      console.error(`Failed to get project ${id} from backend:`, e);
+      return cachedProjects.find((p) => p.id === id) || null;
     }
-
-    return updatedProject;
   },
 
-  delete(id: string): boolean {
+  async save(project: Partial<Project> & { title: string }): Promise<Project> {
     try {
-      const projects = this.getAll();
-      const filtered = projects.filter((p) => p.id !== id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+      const isExisting = project.id && cachedProjects.some((p) => p.id === project.id);
+      let savedBp: any;
+
+      if (isExisting && project.id) {
+        savedBp = await apiClient.updateProject(project.id, {
+          title: project.title,
+          description: project.description,
+          clientId: project.clientId,
+          clientName: project.clientName,
+          status: project.status,
+          durationSeconds: project.durationSeconds,
+          rawPrompt: project.rawPrompt,
+          tags: project.tags,
+          preferences: project.preferences,
+          aspectRatio: project.preferences?.aspectRatio,
+          resolution: project.preferences?.resolution,
+        });
+      } else {
+        savedBp = await apiClient.createProject({
+          title: project.title,
+          description: project.description,
+          clientId: project.clientId,
+          clientName: project.clientName,
+          aspectRatio: project.preferences?.aspectRatio || '16:9',
+          resolution: project.preferences?.resolution || '1080p',
+          rawPrompt: project.rawPrompt,
+          tags: project.tags,
+          preferences: project.preferences,
+        });
+      }
+
+      const saved = backendToFrontendProject(savedBp);
+      const idx = cachedProjects.findIndex((p) => p.id === saved.id);
+      if (idx >= 0) {
+        cachedProjects[idx] = saved;
+      } else {
+        cachedProjects.unshift(saved);
+      }
+      return saved;
+    } catch (e) {
+      console.error('Failed to save project to backend:', e);
+      throw e;
+    }
+  },
+
+  async delete(id: string): Promise<boolean> {
+    try {
+      await apiClient.deleteProject(id);
+      cachedProjects = cachedProjects.filter((p) => p.id !== id);
       return true;
     } catch (e) {
-      console.error('Failed to delete project:', e);
+      console.error(`Failed to delete project ${id} from backend:`, e);
       return false;
     }
   },
 
-  duplicate(id: string): Project | null {
-    const original = this.getById(id);
-    if (!original) return null;
+  async duplicate(id: string): Promise<Project | null> {
+    try {
+      const original = await this.getById(id);
+      if (!original) return null;
 
-    const newId = `prj_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const duplicate: Project = {
-      ...original,
-      id: newId,
-      title: `${original.title} (Copy)`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      status: 'draft',
-    };
+      const created = await apiClient.createProject({
+        title: `${original.title} (Copy)`,
+        description: original.description,
+        clientId: original.clientId,
+        clientName: original.clientName,
+        aspectRatio: original.preferences?.aspectRatio || '16:9',
+        resolution: original.preferences?.resolution || '1080p',
+        rawPrompt: original.rawPrompt,
+        tags: original.tags,
+        preferences: original.preferences,
+      });
 
-    return this.save(duplicate);
+      const duplicated = backendToFrontendProject(created);
+      cachedProjects.unshift(duplicated);
+      return duplicated;
+    } catch (e) {
+      console.error(`Failed to duplicate project ${id}:`, e);
+      return null;
+    }
   },
 
   clearAll(): void {
-    localStorage.removeItem(STORAGE_KEY);
+    cachedProjects = [];
   },
 };
-

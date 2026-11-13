@@ -1,17 +1,27 @@
 import React, { useRef, useState, DragEvent, ChangeEvent } from 'react';
-import { UploadCloud, Film, AlertCircle, RefreshCw } from 'lucide-react';
+import {
+  UploadCloud,
+  Film,
+  AlertCircle,
+  Plus,
+  Loader2,
+  CheckCircle2,
+  X,
+  FileVideo,
+  FileImage,
+} from 'lucide-react';
 import { useWorkspace } from '../../store/WorkspaceContext';
-import { formatBytes, formatSimpleDuration } from '../../utils/formatters';
+import { formatBytes } from '../../utils/formatters';
 import { Button } from '../ui/Button';
 
 export const VideoUploader: React.FC = () => {
   const {
-    videoMetadata,
-    isLoadingMedia,
+    uploadMultipleFiles,
+    uploadQueue,
+    dismissUploadQueueItem,
+    clearUploadQueue,
     mediaError,
-    loadVideoFile,
-    loadSampleVideo,
-    clearVideo,
+    mediaItems,
   } = useWorkspace();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -30,142 +40,170 @@ export const VideoUploader: React.FC = () => {
   const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragOver(false);
-    const files = e.dataTransfer.files;
+    const files = Array.from(e.dataTransfer.files || []);
     if (files.length > 0) {
-      await loadVideoFile(files[0]);
+      await uploadMultipleFiles(files);
     }
   };
 
   const handleFileInputChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      await loadVideoFile(files[0]);
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      await uploadMultipleFiles(files);
       e.target.value = '';
     }
   };
 
-  if (videoMetadata) {
-    return (
-      <div className="bg-studio-surface border border-studio-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-lg bg-violet-600/10 border border-violet-500/30 flex items-center justify-center text-violet-400 flex-shrink-0">
-            <Film className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-studio-text truncate">{videoMetadata.name}</span>
-              <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                Ready
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-studio-muted mt-0.5 font-mono">
-              <span>{formatBytes(videoMetadata.sizeBytes)}</span>
-              <span>•</span>
-              <span>{formatSimpleDuration(videoMetadata.durationSeconds)}</span>
-              <span>•</span>
-              <span>{videoMetadata.width}×{videoMetadata.height}</span>
-              <span>•</span>
-              <span>{videoMetadata.type || 'video/mp4'}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileInputChange}
-            accept="video/mp4,video/webm,video/quicktime,video/x-matroska"
-            className="hidden"
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
-          >
-            Replace Video
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearVideo}
-            className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
-          >
-            Remove
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const isUploadingAny = uploadQueue.some((q) => q.status === 'uploading' || q.status === 'preparing');
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {/* Hidden Multi-file input */}
       <input
         type="file"
         ref={fileInputRef}
         onChange={handleFileInputChange}
-        accept="video/mp4,video/webm,video/quicktime,video/x-matroska"
+        multiple
+        accept="video/*,image/*,.mov,.mp4,.mkv,.3gp,.webm,.avi,.jpg,.jpeg,.png,.webp,.heic,.heif"
         className="hidden"
       />
 
+      {/* Main Drag & Drop Zone */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 ${
+        className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all duration-200 select-none ${
           isDragOver
             ? 'border-violet-500 bg-violet-600/10 scale-[0.99]'
             : 'border-studio-border hover:border-violet-500/50 hover:bg-studio-surface/60 bg-studio-surface/30'
         }`}
       >
-        <div className="flex flex-col items-center justify-center max-w-md mx-auto space-y-3">
-          <div className="w-12 h-12 rounded-xl bg-studio-card border border-studio-border flex items-center justify-center text-violet-400 shadow-studio-sm">
-            <UploadCloud className="w-6 h-6" />
+        <div className="flex items-center justify-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-studio-card border border-studio-border flex items-center justify-center text-violet-400 shadow-studio-sm flex-shrink-0">
+            <UploadCloud className="w-5 h-5" />
           </div>
-
-          <div>
-            <h4 className="text-sm font-semibold text-studio-text">
-              Drag & Drop your raw video clip here
-            </h4>
-            <p className="text-xs text-studio-muted mt-1 leading-relaxed">
-              Supports MP4, WebM, MOV, and MKV files up to 2 GB for real in-browser playback.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              isLoading={isLoadingMedia}
-              onClick={(e: React.MouseEvent) => {
-                e.stopPropagation();
-                fileInputRef.current?.click();
-              }}
-            >
-              Browse Files
-            </Button>
-
-            <span className="text-xs text-studio-subtle">or</span>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={(e: React.MouseEvent) => {
-                e.stopPropagation();
-                loadSampleVideo();
-              }}
-              title="Load a high-definition sample clip for quick test"
-            >
-              Load Sample Video
-            </Button>
-          </div>
+          <span className="text-sm font-semibold text-studio-text">
+            Drag &amp; Drop
+          </span>
         </div>
       </div>
 
+      {/* Upload Progress Drawer (when files are uploading or queued) */}
+      {uploadQueue.length > 0 && (
+        <div className="bg-studio-surface border border-studio-border rounded-xl p-3.5 space-y-2.5 shadow-studio-sm">
+          <div className="flex items-center justify-between text-xs pb-1 border-b border-studio-border">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-white">Upload Activity</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-violet-600/20 text-violet-300">
+                {uploadQueue.filter((q) => q.status === 'ready').length} / {uploadQueue.length} done
+              </span>
+            </div>
+
+            {!isUploadingAny && (
+              <button
+                type="button"
+                onClick={clearUploadQueue}
+                className="text-[11px] text-studio-muted hover:text-white transition-colors"
+              >
+                Clear list
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            {uploadQueue.map((item) => {
+              const isImage = /\.(jpe?g|png|webp|heic|heif)$/i.test(item.name);
+
+              return (
+                <div
+                  key={item.id}
+                  className="bg-studio-card border border-studio-border rounded-lg p-2.5 flex items-center justify-between gap-3 text-xs"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="w-7 h-7 rounded bg-studio-surface border border-studio-border flex items-center justify-center text-studio-muted flex-shrink-0">
+                      {isImage ? <FileImage className="w-3.5 h-3.5 text-emerald-400" /> : <FileVideo className="w-3.5 h-3.5 text-violet-400" />}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-studio-text truncate text-xs" title={item.name}>
+                          {item.name}
+                        </span>
+                        <span className="text-[10px] text-studio-muted font-mono flex-shrink-0">
+                          {formatBytes(item.size)}
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="w-full bg-studio-surface rounded-full h-1.5 mt-1.5 overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-300 rounded-full ${
+                            item.status === 'error'
+                              ? 'bg-rose-500'
+                              : item.status === 'ready'
+                              ? 'bg-emerald-500'
+                              : 'bg-violet-600'
+                          }`}
+                          style={{
+                            width: `${item.status === 'ready' ? 100 : item.progress}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status Indicator & Action */}
+                  <div className="flex items-center gap-2 flex-shrink-0 text-[11px]">
+                    {item.status === 'uploading' && (
+                      <span className="flex items-center gap-1 font-mono text-violet-400">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>{item.progress}%</span>
+                      </span>
+                    )}
+
+                    {item.status === 'preparing' && (
+                      <span className="flex items-center gap-1 font-mono text-amber-400">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Preparing preview...</span>
+                      </span>
+                    )}
+
+                    {item.status === 'ready' && (
+                      <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Ready</span>
+                      </span>
+                    )}
+
+                    {item.status === 'error' && (
+                      <span
+                        className="flex items-center gap-1 text-rose-400 font-medium truncate max-w-xs"
+                        title={item.error}
+                      >
+                        <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="truncate">{item.error || 'Failed'}</span>
+                      </span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => dismissUploadQueueItem(item.id)}
+                      className="text-studio-subtle hover:text-white p-1 rounded transition-colors"
+                      title="Dismiss"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Media Error Alert */}
       {mediaError && (
         <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-300 text-xs">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />

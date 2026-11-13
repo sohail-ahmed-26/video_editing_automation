@@ -6,6 +6,18 @@ export interface UserProfile {
   workspaceName: string;
 }
 
+export interface EditDefaults {
+  captions: boolean;
+  captionStyle: 'viral' | 'clean' | 'minimal';
+  music: boolean;
+  musicMood: string;
+  logo: boolean;
+  silenceRemoval: boolean;
+  speechAccuracy: 'standard' | 'high';
+  speechLanguage: string;
+  visualUnderstanding?: boolean;
+}
+
 export interface ExportDefaults {
   format: 'mp4' | 'webm' | 'mov';
   resolution: '720p' | '1080p' | '4K';
@@ -33,4 +45,3 @@ export interface BackendConfig {
   lastCheckedAt: string | null;
   errorMessage: string | null;
 }
-

@@ -11,11 +11,18 @@ import {
   SkipForward,
   Film,
   Grid,
+  Loader2,
+  AlertTriangle,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useWorkspace } from '../../store/WorkspaceContext';
 import { formatTimecode } from '../../utils/formatters';
 
-export const VideoPlayer: React.FC = () => {
+interface VideoPlayerProps {
+  src?: string;
+}
+
+export const VideoPlayer: React.FC<VideoPlayerProps> = ({ src }) => {
   const {
     videoUrl,
     videoMetadata,
@@ -33,6 +40,10 @@ export const VideoPlayer: React.FC = () => {
     setPlaybackRate,
     registerVideoElement,
     aspectRatio,
+    isPreviewLoading,
+    previewStatusMessage,
+    previewError,
+    isPhoto,
   } = useWorkspace();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -99,8 +110,16 @@ export const VideoPlayer: React.FC = () => {
       {/* Top Preview Bar */}
       <div className="h-10 px-4 bg-studio-card/80 border-b border-studio-border flex items-center justify-between text-xs">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-studio-muted">Preview Monitor</span>
-          {videoMetadata && (
+          <span className="font-semibold text-studio-muted">
+            {isPhoto ? 'Photo Preview' : 'Preview Monitor'}
+          </span>
+          {isPreviewLoading && (
+            <span className="flex items-center gap-1 text-[11px] text-violet-400 font-mono">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              <span>Preparing...</span>
+            </span>
+          )}
+          {videoMetadata && !isPreviewLoading && (
             <span className="font-mono text-[11px] text-studio-subtle">
               ({videoMetadata.width}×{videoMetadata.height})
             </span>
@@ -128,15 +147,50 @@ export const VideoPlayer: React.FC = () => {
 
       {/* Main Video Viewport */}
       <div className="relative flex-1 min-h-[320px] max-h-[480px] bg-black/90 flex items-center justify-center p-4 overflow-hidden select-none">
-        {videoUrl ? (
+        {isPreviewLoading ? (
+          <div className="flex flex-col items-center justify-center text-center p-6 space-y-3">
+            <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-white">Preparing preview...</p>
+              <p className="text-xs text-studio-muted max-w-sm">
+                {previewStatusMessage || 'Converting to browser-safe format in background...'}
+              </p>
+            </div>
+          </div>
+        ) : previewError && !videoUrl ? (
+          <div className="flex flex-col items-center justify-center text-center p-6 space-y-3 max-w-md">
+            <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-rose-300">Preview Could Not Be Loaded</p>
+              <p className="text-xs text-rose-200/80">{previewError}</p>
+            </div>
+          </div>
+        ) : videoUrl ? (
           <div className={`relative w-full transition-all duration-300 flex items-center justify-center ${getAspectRatioClasses()}`}>
-            <video
-              ref={registerVideoElement}
-              src={videoUrl}
-              playsInline
-              onClick={togglePlay}
-              className="w-full h-full object-contain cursor-pointer rounded shadow-2xl"
-            />
+            {isPhoto && !src ? (
+              <img
+                src={videoUrl}
+                alt=""
+                className="w-full h-full object-contain rounded shadow-2xl"
+              />
+            ) : (
+              <video
+                ref={registerVideoElement}
+                src={src || videoUrl}
+                playsInline
+                onClick={togglePlay}
+                className="w-full h-full object-contain cursor-pointer rounded shadow-2xl"
+              />
+            )}
+
+            {previewError && (
+              <div className="absolute top-2 left-2 right-2 bg-amber-950/80 border border-amber-500/40 text-amber-200 px-3 py-1.5 rounded text-xs flex items-center gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
+                <span className="truncate">{previewError}</span>
+              </div>
+            )}
 
             {showGridOverlay && (
               <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 border border-violet-500/30">
@@ -158,9 +212,9 @@ export const VideoPlayer: React.FC = () => {
               <Film className="w-7 h-7" />
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-studio-text">No Video Loaded</p>
+              <p className="text-sm font-medium text-studio-text">No Media Loaded</p>
               <p className="text-xs text-studio-muted max-w-xs">
-                Upload a video file or load the sample video above to activate playback and preview.
+                Upload a video or photo above to activate playback and preview.
               </p>
             </div>
           </div>

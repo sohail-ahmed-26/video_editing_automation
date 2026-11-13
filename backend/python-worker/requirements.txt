@@ -1,0 +1,6 @@
+faster-whisper
+scenedetect
+opencv-python
+Pillow
+pillow-heif
+

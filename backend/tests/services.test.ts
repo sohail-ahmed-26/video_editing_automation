@@ -67,8 +67,8 @@ describe('Video Processing Services Unit & Integration Tests', () => {
         { filePath: sampleVideoPath, sourceIn: 2.5, sourceOut: 4.5, speed: 1.0 },
       ],
       captions: [
-        { startTime: 0.0, endTime: 1.8, text: 'NovaCut Automated Edit' },
-        { startTime: 2.0, endTime: 3.8, text: 'Seamless AI Assembly' },
+        { startTime: 0.0, endTime: 1.8, text: 'Automated Edit' },
+        { startTime: 2.0, endTime: 3.8, text: 'Seamless Assembly' },
       ],
       aspectRatio: '16:9',
       resolution: '1080p',

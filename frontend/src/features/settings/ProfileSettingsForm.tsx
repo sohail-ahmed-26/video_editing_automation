@@ -26,16 +26,21 @@ export const ProfileSettingsForm: React.FC = () => {
   });
 
   const onSubmit = (data: ProfileFormValues) => {
-    const initials = data.name
+    const initials = (data.name || '')
+      .trim()
       .split(' ')
+      .filter(Boolean)
       .map((n) => n[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
 
     updateProfile({
-      ...data,
-      avatarInitials: initials || 'CD',
+      name: data.name || '',
+      email: data.email || '',
+      role: data.role || '',
+      workspaceName: data.workspaceName || '',
+      avatarInitials: initials || 'ME',
     });
 
     setSaveSuccess(true);
@@ -47,6 +52,7 @@ export const ProfileSettingsForm: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input
           label="Editor Display Name"
+          placeholder="Your name"
           {...register('name')}
           error={errors.name?.message}
         />
@@ -54,18 +60,21 @@ export const ProfileSettingsForm: React.FC = () => {
         <Input
           label="Email Address"
           type="email"
+          placeholder="you@example.com"
           {...register('email')}
           error={errors.email?.message}
         />
 
         <Input
           label="Production Role"
+          placeholder="Production Role (e.g. Lead Editor)"
           {...register('role')}
           error={errors.role?.message}
         />
 
         <Input
           label="Studio Workspace Title"
+          placeholder="Your Studio / Brand"
           {...register('workspaceName')}
           error={errors.workspaceName?.message}
         />

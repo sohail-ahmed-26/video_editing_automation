@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { MobileNav } from './MobileNav';
+import { APP_NAME } from '../../config/brand';
 
 export const AppLayout: React.FC = () => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    document.title = APP_NAME;
+  }, []);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-studio-bg text-studio-text">
@@ -27,4 +32,3 @@ export const AppLayout: React.FC = () => {
     </div>
   );
 };
-

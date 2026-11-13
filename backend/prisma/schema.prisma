@@ -1,4 +1,4 @@
-// Prisma schema for NovaCut Studio AI Video Editor
+// Prisma schema for Studio Video Editor
 // Compatible with SQLite (development/local) and PostgreSQL (production)
 
 generator client {
@@ -19,10 +19,22 @@ model Workspace {
   projects    Project[]
 }
 
+model Client {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  projects    Project[]
+}
+
 model Project {
   id                  String               @id @default(uuid())
   workspaceId         String?
   workspace           Workspace?           @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  clientId            String?
+  client              Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
   title               String
   description         String?
   status              String               @default("draft") // draft, processing, ready, failed
@@ -31,6 +43,9 @@ model Project {
   resolution          String               @default("1080p") // 1080p, 4k, 720p
   durationSeconds     Float?               @default(0)
   thumbnailUrl        String?
+  rawPrompt           String?              @default("")
+  tagsJson            String?              // JSON stringified array of tags
+  preferencesJson     String?              // JSON stringified editing preferences
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
@@ -40,6 +55,7 @@ model Project {
   timelineTracks      TimelineTrack[]
   renderingJobs       RenderingJob[]
   exportedFiles       ExportedFile[]
+  versions            ProjectVersion[]
 }
 
 model MediaAsset {
@@ -264,21 +280,43 @@ model JobEvent {
 }
 
 model ExportedFile {
-  id             String        @id @default(uuid())
+  id             String           @id @default(uuid())
   projectId      String
-  project        Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project        Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   renderingJobId String?
-  renderingJob   RenderingJob? @relation(fields: [renderingJobId], references: [id], onDelete: SetNull)
+  renderingJob   RenderingJob?    @relation(fields: [renderingJobId], references: [id], onDelete: SetNull)
+  versionTag     String?          // e.g. "v1", "v2"
+  versionNumber  Int?             // e.g. 1, 2
   filename       String
-  mimeType       String        @default("video/mp4")
+  mimeType       String           @default("video/mp4")
   fileSizeBytes  Int
   storagePath    String
   publicUrl      String
   width          Int
   height         Int
   duration       Float
-  resolution     String        @default("1080p")
-  format         String        @default("mp4")
-  createdAt      DateTime      @default(now())
+  resolution     String           @default("1080p")
+  format         String           @default("mp4")
+  createdAt      DateTime         @default(now())
+
+  versions       ProjectVersion[]
 }
 
+model ProjectVersion {
+  id             String        @id @default(uuid())
+  projectId      String
+  project        Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versionNumber  Int
+  versionTag     String        // e.g. "v1", "v2"
+  filename       String
+  storagePath    String
+  publicUrl      String
+  fileSizeBytes  Int?
+  duration       Float?
+  resolution     String?       @default("1080p")
+  format         String?       @default("mp4")
+  notes          String?
+  createdAt      DateTime      @default(now())
+  exportedFileId String?
+  exportedFile   ExportedFile? @relation(fields: [exportedFileId], references: [id], onDelete: SetNull)
+}

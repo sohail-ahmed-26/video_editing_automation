@@ -18,7 +18,7 @@ export const Modal: React.FC<ModalProps> = ({
   description,
   children,
   footer,
-  maxWidth = 'lg',
+  maxWidth = 'md',
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -42,40 +42,40 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
       <div
         className="fixed inset-0"
         onClick={onClose}
         aria-hidden="true"
       />
       <div
-        className={`relative w-full ${maxWidthClasses[maxWidth]} bg-studio-card border border-studio-borderLight rounded-xl shadow-studio-lg overflow-hidden z-10 flex flex-col max-h-[90vh]`}
+        className={`relative w-full ${maxWidthClasses[maxWidth]} bg-[#181A1F] border border-[#23262D] rounded shadow-subtle overflow-hidden z-10 flex flex-col max-h-[90vh]`}
         role="dialog"
         aria-modal="true"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-studio-border bg-studio-surface/50">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#23262D] bg-[#121317]">
           <div>
-            <h3 className="text-base font-semibold text-studio-text">{title}</h3>
-            {description && <p className="text-xs text-studio-muted mt-0.5">{description}</p>}
+            <h3 className="text-sm font-semibold text-[#ECEDEF]">{title}</h3>
+            {description && <p className="text-xs text-[#8B909A] mt-0.5">{description}</p>}
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-studio-muted hover:text-white hover:bg-studio-surface transition-colors"
+            className="p-1 rounded text-[#8B909A] hover:text-[#ECEDEF] hover:bg-[#181A1F] transition-colors"
             aria-label="Close dialog"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="px-6 py-5 overflow-y-auto space-y-4">
+        <div className="px-5 py-4 overflow-y-auto space-y-3 text-sm text-[#ECEDEF]">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-2.5 px-6 py-3.5 border-t border-studio-border bg-studio-surface/50">
+          <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[#23262D] bg-[#121317]">
             {footer}
           </div>
         )}
@@ -83,4 +83,3 @@ export const Modal: React.FC<ModalProps> = ({
     </div>
   );
 };
-

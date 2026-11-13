@@ -28,7 +28,7 @@ describe('Fastify REST API Integration Tests', () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
     expect(body.status).toBe('ok');
-    expect(body.service).toBe('NovaCut Studio Backend');
+    expect(body.service).toBe('Studio Backend');
   });
 
   it('GET /api/v1/projects lists projects successfully', async () => {

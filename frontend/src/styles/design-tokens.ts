@@ -1,5 +1,5 @@
 /**
- * NovaCut Studio — Design System Tokens
+ * Studio — Design System Tokens
  * Strict, consistent design constants for professional creative workspace UI.
  */
 

@@ -1,29 +1,35 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppLayout } from '../../components/layout/AppLayout';
-import { DashboardPage } from '../../features/dashboard/DashboardPage';
-import { WorkspacePage } from '../../features/workspace/WorkspacePage';
-import { ProjectsPage } from '../../features/projects/ProjectsPage';
-import { TemplatesPage } from '../../features/templates/TemplatesPage';
-import { BrandAssetsPage } from '../../features/brand/BrandAssetsPage';
+import { HomePage } from '../../features/home/HomePage';
+import { EditorPage } from '../../features/editor/EditorPage';
 import { SettingsPage } from '../../features/settings/SettingsPage';
-import { NotFoundPage } from '../../components/layout/NotFoundPage';
 
 export const AppRouter: React.FC = () => {
   return (
     <Routes>
       <Route path="/" element={<AppLayout />}>
-        <Route index element={<DashboardPage />} />
-        <Route path="workspace" element={<WorkspacePage />} />
-        <Route path="workspace/:projectId" element={<WorkspacePage />} />
-        <Route path="projects" element={<ProjectsPage />} />
-        <Route path="projects/:projectId" element={<WorkspacePage />} />
-        <Route path="templates" element={<TemplatesPage />} />
-        <Route path="brand-assets" element={<BrandAssetsPage />} />
+        {/* Exactly 3 main pages */}
+        <Route index element={<HomePage />} />
+        <Route path="editor" element={<EditorPage />} />
+        <Route path="editor/:projectId" element={<EditorPage />} />
         <Route path="settings" element={<SettingsPage />} />
-        <Route path="*" element={<NotFoundPage />} />
+
+        {/* Workspace aliases forward directly to Editor */}
+        <Route path="workspace" element={<EditorPage />} />
+        <Route path="workspace/:projectId" element={<EditorPage />} />
+
+        {/* Deleted pages / Old URLs redirect to Home */}
+        <Route path="projects" element={<Navigate to="/" replace />} />
+        <Route path="projects/*" element={<Navigate to="/" replace />} />
+        <Route path="templates" element={<Navigate to="/" replace />} />
+        <Route path="brand-assets" element={<Navigate to="/" replace />} />
+        <Route path="brand" element={<Navigate to="/" replace />} />
+        <Route path="dashboard" element={<Navigate to="/" replace />} />
+
+        {/* Fallback to Home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );
 };
-

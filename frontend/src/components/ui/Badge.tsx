@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type BadgeVariant = 'violet' | 'emerald' | 'amber' | 'rose' | 'neutral' | 'blue';
+export type BadgeVariant = 'violet' | 'emerald' | 'amber' | 'rose' | 'neutral' | 'blue' | 'accent' | 'success' | 'danger';
 
 export interface BadgeProps {
   children: React.ReactNode;
@@ -18,29 +18,41 @@ export const Badge: React.FC<BadgeProps> = ({
   className = '',
 }) => {
   const variantStyles: Record<BadgeVariant, { container: string; dot: string }> = {
+    accent: {
+      container: 'bg-[#C8A96A]/10 text-[#D8BC82] border-[#C8A96A]/25',
+      dot: 'bg-[#C8A96A]',
+    },
     violet: {
-      container: 'bg-violet-500/10 text-violet-300 border-violet-500/20',
-      dot: 'bg-violet-400',
+      container: 'bg-[#C8A96A]/10 text-[#D8BC82] border-[#C8A96A]/25',
+      dot: 'bg-[#C8A96A]',
     },
     emerald: {
-      container: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
-      dot: 'bg-emerald-400',
+      container: 'bg-[#5FA37A]/10 text-[#5FA37A] border-[#5FA37A]/25',
+      dot: 'bg-[#5FA37A]',
+    },
+    success: {
+      container: 'bg-[#5FA37A]/10 text-[#5FA37A] border-[#5FA37A]/25',
+      dot: 'bg-[#5FA37A]',
     },
     amber: {
-      container: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
-      dot: 'bg-amber-400',
+      container: 'bg-[#C8A96A]/10 text-[#D8BC82] border-[#C8A96A]/25',
+      dot: 'bg-[#C8A96A]',
     },
     rose: {
-      container: 'bg-rose-500/10 text-rose-300 border-rose-500/20',
-      dot: 'bg-rose-400',
+      container: 'bg-[#C75B5B]/10 text-[#C75B5B] border-[#C75B5B]/25',
+      dot: 'bg-[#C75B5B]',
+    },
+    danger: {
+      container: 'bg-[#C75B5B]/10 text-[#C75B5B] border-[#C75B5B]/25',
+      dot: 'bg-[#C75B5B]',
     },
     blue: {
-      container: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
-      dot: 'bg-blue-400',
+      container: 'bg-[#181A1F] text-[#ECEDEF] border-[#23262D]',
+      dot: 'bg-[#8B909A]',
     },
     neutral: {
-      container: 'bg-studio-surface text-studio-muted border-studio-border',
-      dot: 'bg-studio-subtle',
+      container: 'bg-[#121317] text-[#8B909A] border-[#23262D]',
+      dot: 'bg-[#8B909A]',
     },
   };
 
@@ -49,13 +61,14 @@ export const Badge: React.FC<BadgeProps> = ({
     md: 'text-xs px-2.5 py-1 gap-1.5',
   };
 
+  const style = variantStyles[variant] || variantStyles.neutral;
+
   return (
     <span
-      className={`inline-flex items-center font-medium rounded-full border ${variantStyles[variant].container} ${sizeStyles[size]} ${className}`}
+      className={`inline-flex items-center font-medium rounded border ${style.container} ${sizeStyles[size]} ${className}`}
     >
-      {dot && <span className={`w-1.5 h-1.5 rounded-full ${variantStyles[variant].dot}`} />}
+      {dot && <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />}
       {children}
     </span>
   );
 };
-

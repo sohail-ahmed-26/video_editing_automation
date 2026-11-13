@@ -1,10 +1,7 @@
-import { Worker, Job } from 'bullmq';
-import { redisConnection } from '../config/queue.js';
+import { Worker, Job } from '../queues/in-memory-queue.js';
 import { prisma } from '../config/database.js';
-import { ffprobeService } from '../services/ffmpeg/ffprobe.service.js';
-import { ffmpegService } from '../services/ffmpeg/ffmpeg.service.js';
+import { previewService } from '../services/preview/preview.service.js';
 import { pythonBridgeService } from '../services/python/python-bridge.service.js';
-import { storageService } from '../services/storage/storage.service.js';
 import { transcriptionQueue } from '../queues/index.js';
 
 export interface AnalysisJobData {
@@ -15,7 +12,7 @@ export const analysisWorker = new Worker<AnalysisJobData>(
   'media-analysis',
   async (job: Job<AnalysisJobData>) => {
     const { mediaAssetId } = job.data;
-    console.log(`[AnalysisWorker] Starting analysis for mediaAsset: ${mediaAssetId}`);
+    console.log(`[AnalysisWorker] Starting processing for mediaAsset: ${mediaAssetId}`);
 
     const mediaAsset = await prisma.mediaAsset.findUnique({
       where: { id: mediaAssetId },
@@ -32,114 +29,76 @@ export const analysisWorker = new Worker<AnalysisJobData>(
     });
 
     try {
-      // 1. FFprobe metadata
-      await job.updateProgress(15);
-      const probeResult = await ffprobeService.probeMedia(mediaAsset.storagePath);
+      // 1. Generate universal preview copy (video or photo) and thumbnail immediately
+      await job.updateProgress(20);
+      const previewInfo = await previewService.processMediaPreview(mediaAssetId);
 
-      await prisma.videoMetadata.upsert({
-        where: { mediaAssetId },
-        create: {
-          mediaAssetId,
-          format: probeResult.format,
-          duration: probeResult.duration,
-          bitrate: probeResult.bitrate,
-          videoCodec: probeResult.videoCodec,
-          audioCodec: probeResult.audioCodec,
-          width: probeResult.width,
-          height: probeResult.height,
-          aspectRatio: probeResult.aspectRatio,
-          frameRate: probeResult.frameRate,
-          audioChannels: probeResult.audioChannels,
-          sampleRate: probeResult.sampleRate,
-          rawMetadataJson: probeResult.rawJson,
-        },
-        update: {
-          format: probeResult.format,
-          duration: probeResult.duration,
-          bitrate: probeResult.bitrate,
-          videoCodec: probeResult.videoCodec,
-          audioCodec: probeResult.audioCodec,
-          width: probeResult.width,
-          height: probeResult.height,
-          aspectRatio: probeResult.aspectRatio,
-          frameRate: probeResult.frameRate,
-          audioChannels: probeResult.audioChannels,
-          sampleRate: probeResult.sampleRate,
-          rawMetadataJson: probeResult.rawJson,
-        },
-      });
+      // If media is a photo, processing is complete!
+      if (previewInfo.isPhoto) {
+        await job.updateProgress(100);
+        console.log(`[AnalysisWorker] Photo preview processing complete for mediaAsset: ${mediaAssetId}`);
+        return;
+      }
 
-      // Update mediaAsset duration and resolution
-      await prisma.mediaAsset.update({
-        where: { id: mediaAssetId },
-        data: {
-          durationSeconds: probeResult.duration,
-          width: probeResult.width,
-          height: probeResult.height,
-          fps: probeResult.frameRate,
-          codec: probeResult.videoCodec,
-          hasAudio: !!probeResult.audioCodec,
-          audioChannels: probeResult.audioChannels,
-          audioSampleRate: probeResult.sampleRate,
-        },
-      });
-
-      // 2. Generate video thumbnail
-      await job.updateProgress(35);
-      const thumbFilename = `thumb_${mediaAsset.id}.jpg`;
-      const thumbPath = storageService.getThumbnailPath(thumbFilename);
-      const thumbSeek = Math.min(1.0, Math.max(0.1, probeResult.duration / 4));
-      
+      // 2. Video Scene Detection with PySceneDetect
+      await job.updateProgress(50);
+      console.log(`[AnalysisWorker] Running PySceneDetect for ${mediaAsset.filename}...`);
+      let detectedScenes: any[] = [];
       try {
-        await ffmpegService.generateThumbnail(mediaAsset.storagePath, thumbPath, thumbSeek);
-        const thumbUrl = storageService.getPublicUrl(thumbPath);
-        
-        // Update project thumbnail if not set
-        if (!mediaAsset.project.thumbnailUrl) {
-          await prisma.project.update({
-            where: { id: mediaAsset.projectId },
+        detectedScenes = await pythonBridgeService.detectScenes(mediaAsset.storagePath);
+
+        // Clear any prior scenes for this asset and reinsert
+        await prisma.detectedScene.deleteMany({ where: { mediaAssetId } });
+
+        for (const scene of detectedScenes) {
+          await prisma.detectedScene.create({
             data: {
-              thumbnailUrl: thumbUrl,
-              durationSeconds: probeResult.duration,
+              mediaAssetId,
+              sceneIndex: scene.scene_index,
+              startTime: scene.start_time,
+              endTime: scene.end_time,
+              duration: scene.duration,
+              cutType: scene.cut_type,
+              score: scene.score,
             },
           });
         }
-      } catch (thumbErr) {
-        console.warn(`[AnalysisWorker] Thumbnail generation non-fatal error:`, thumbErr);
+      } catch (sceneErr) {
+        console.warn(`[AnalysisWorker] Scene detection non-fatal warning for ${mediaAsset.filename}:`, sceneErr);
       }
 
-      // 3. Scene Detection with PySceneDetect
-      await job.updateProgress(55);
-      console.log(`[AnalysisWorker] Running PySceneDetect for ${mediaAsset.filename}...`);
-      const detectedScenes = await pythonBridgeService.detectScenes(mediaAsset.storagePath);
-
-      // Clear any prior scenes for this asset and reinsert
-      await prisma.detectedScene.deleteMany({ where: { mediaAssetId } });
-
-      for (const scene of detectedScenes) {
-        await prisma.detectedScene.create({
-          data: {
-            mediaAssetId,
-            sceneIndex: scene.scene_index,
-            startTime: scene.start_time,
-            endTime: scene.end_time,
-            duration: scene.duration,
-            cutType: scene.cut_type,
-            score: scene.score,
-          },
-        });
+      // 3. Local Computer Vision & Quality Analysis
+      await job.updateProgress(70);
+      console.log(`[AnalysisWorker] Running local footage quality analysis for ${mediaAsset.filename}...`);
+      try {
+        const qualityAnalysis = await pythonBridgeService.analyzeVideo(mediaAsset.storagePath, 1.0);
+        // Persist analysis in metadata
+        const existingMeta = await prisma.videoMetadata.findUnique({ where: { mediaAssetId } });
+        if (existingMeta) {
+          let currentJson: any = {};
+          try {
+            if (existingMeta.rawMetadataJson) currentJson = JSON.parse(existingMeta.rawMetadataJson);
+          } catch {}
+          currentJson.qualityAnalysis = qualityAnalysis;
+          await prisma.videoMetadata.update({
+            where: { mediaAssetId },
+            data: { rawMetadataJson: JSON.stringify(currentJson) },
+          });
+        }
+      } catch (analErr) {
+        console.warn(`[AnalysisWorker] Video analysis warning for ${mediaAsset.filename}:`, analErr);
       }
 
       await job.updateProgress(85);
 
       // 4. Mark analyzed
-      await prisma.mediaAsset.update({
+      const updatedAsset = await prisma.mediaAsset.update({
         where: { id: mediaAssetId },
         data: { status: 'analyzed' },
       });
 
       // 5. Enqueue transcription if asset has audio
-      if (probeResult.audioCodec) {
+      if (updatedAsset.hasAudio) {
         await transcriptionQueue.add('transcribe', { mediaAssetId });
       }
 
@@ -155,8 +114,6 @@ export const analysisWorker = new Worker<AnalysisJobData>(
     }
   },
   {
-    connection: redisConnection,
     concurrency: 2,
   }
 );
-

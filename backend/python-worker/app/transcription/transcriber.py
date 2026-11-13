@@ -7,6 +7,21 @@ import sys
 import json
 import math
 from typing import Dict, Any
+
+# Fix PyAV 14+ compatibility with faster-whisper:
+# PyAV 14+ removed the 'metadata_errors' parameter from av.open()
+try:
+    import av
+    _orig_av_open = av.open
+
+    def _safe_av_open(*args, **kwargs):
+        kwargs.pop("metadata_errors", None)
+        return _orig_av_open(*args, **kwargs)
+
+    av.open = _safe_av_open
+except Exception as _patch_err:
+    sys.stderr.write(f"PyAV patch warning: {_patch_err}\n")
+
 from faster_whisper import WhisperModel
 
 def transcribe_audio(
@@ -108,4 +123,3 @@ if __name__ == "__main__":
     model_name = sys.argv[2] if len(sys.argv) > 2 else "tiny"
     res = transcribe_audio(sys.argv[1], model_size=model_name)
     print(json.dumps(res))
-

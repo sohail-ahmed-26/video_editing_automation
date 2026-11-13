@@ -24,22 +24,22 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`flex flex-col items-center justify-center text-center p-8 border border-dashed border-studio-border rounded-xl bg-studio-surface/30 ${className}`}>
-      <div className="w-12 h-12 rounded-xl bg-studio-card border border-studio-border flex items-center justify-center text-violet-400 mb-4 shadow-studio-sm">
-        <Icon className="w-6 h-6" />
+    <div className={`flex flex-col items-center justify-center text-center p-8 border border-dashed border-[#23262D] rounded bg-[#121317]/50 ${className}`}>
+      <div className="w-10 h-10 rounded bg-[#181A1F] border border-[#23262D] flex items-center justify-center text-[#C8A96A] mb-3">
+        <Icon className="w-5 h-5" />
       </div>
-      <h3 className="text-base font-semibold text-studio-text mb-1">{title}</h3>
-      <p className="text-sm text-studio-muted max-w-sm mb-6 leading-relaxed">
+      <h3 className="text-sm font-semibold text-[#ECEDEF] mb-1">{title}</h3>
+      <p className="text-xs text-[#8B909A] max-w-sm mb-4 leading-relaxed">
         {description}
       </p>
-      <div className="flex flex-wrap items-center justify-center gap-3">
+      <div className="flex flex-wrap items-center justify-center gap-2">
         {actionLabel && onAction && (
-          <Button variant="primary" size="md" onClick={onAction}>
+          <Button variant="primary" size="sm" onClick={onAction}>
             {actionLabel}
           </Button>
         )}
         {secondaryActionLabel && onSecondaryAction && (
-          <Button variant="secondary" size="md" onClick={onSecondaryAction}>
+          <Button variant="secondary" size="sm" onClick={onSecondaryAction}>
             {secondaryActionLabel}
           </Button>
         )}
@@ -47,4 +47,3 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     </div>
   );
 };
-

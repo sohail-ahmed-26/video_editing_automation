@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
 export const profileFormSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Please enter a valid email address'),
-  role: z.string().min(2, 'Role description is required'),
-  workspaceName: z.string().min(2, 'Workspace name is required'),
+  name: z.string(),
+  email: z.string().email('Please enter a valid email address').or(z.literal('')),
+  role: z.string(),
+  workspaceName: z.string(),
 });
 
 export type ProfileFormValues = z.infer<typeof profileFormSchema>;

@@ -2,13 +2,12 @@ import { buildApp } from './app.js';
 import { env } from './config/env.js';
 import { startWorkers } from './workers/index.js';
 import { prisma } from './config/database.js';
-import { redisConnection } from './config/queue.js';
 
 async function main() {
   try {
     const app = await buildApp();
 
-    // Start BullMQ workers in background
+    // Start in-process background workers
     startWorkers();
 
     await app.listen({
@@ -17,19 +16,16 @@ async function main() {
     });
 
     console.log(`=================================================`);
-    console.log(`🚀 NovaCut Studio Backend running on http://${env.HOST}:${env.PORT}`);
-    console.log(`📡 Health check: http://localhost:${env.PORT}/health`);
-    console.log(`📁 Local Storage: ${env.STORAGE_DIR}`);
-    console.log(`🧠 AI Ollama: ${env.OLLAMA_BASE_URL} (${env.OLLAMA_MODEL})`);
-    console.log(`🎙️ Whisper Model: ${env.WHISPER_MODEL}`);
-    console.log(`⚡ Redis: ${env.REDIS_URL}`);
+    console.log(`Studio Backend running on http://${env.HOST}:${env.PORT}`);
+    console.log(`Health check: http://localhost:${env.PORT}/api/health`);
+    console.log(`Storage: ${env.STORAGE_DIR}`);
+    console.log(`Job Engine: Active`);
     console.log(`=================================================`);
 
     const shutdown = async (signal: string) => {
       console.log(`[Server] Received ${signal}, shutting down gracefully...`);
       await app.close();
       await prisma.$disconnect();
-      redisConnection.disconnect();
       process.exit(0);
     };
 
@@ -42,4 +38,3 @@ async function main() {
 }
 
 main();
-
